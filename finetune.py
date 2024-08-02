@@ -29,13 +29,13 @@ parser.add_argument('--model', default='stackhourglass',
                     help='select model')
 parser.add_argument('--datatype', default='2015',
                     help='datapath')
-parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flow_2015/training/',
+parser.add_argument('--datapath', default='disk_b/datasets/KITTI/kitti_2015/data_scene_flow/training/',
                     help='datapath')
 parser.add_argument('--epochs', type=int, default=300,
                     help='number of epochs to train')
-parser.add_argument('--loadmodel', default='./trained/submission_model.tar',
+parser.add_argument('--loadmodel', default='./YM/PSMNet-2stream/pretrained_model_KITTI2015.tar',
                     help='load model')
-parser.add_argument('--savemodel', default='./',
+parser.add_argument('--savemodel', default='disk_b/savemodels/kitti2015_original_psmnet/',
                     help='save model')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
@@ -111,7 +111,7 @@ def train(imgL,imgR,disp_L):
         loss.backward()
         optimizer.step()
 
-        return loss.data[0]
+        return loss.data
 
 def test(imgL,imgR,disp_true):
         model.eval()
@@ -124,6 +124,7 @@ def test(imgL,imgR,disp_true):
             output3 = model(imgL,imgR)
 
         pred_disp = output3.data.cpu()
+        pred_disp = torch.squeeze(pred_disp, 1)
 
         #computing 3-px error#
         true_disp = copy.deepcopy(disp_true)
@@ -159,8 +160,8 @@ def main():
             start_time = time.time() 
 
             loss = train(imgL_crop,imgR_crop, disp_crop_L)
-        print('Iter %d training loss = %.3f , time = %.2f' %(batch_idx, loss, time.time() - start_time))
-        total_train_loss += loss
+            print('Iter %d training loss = %.3f , time = %.2f' %(batch_idx, loss, time.time() - start_time))
+            total_train_loss += loss
         print('epoch %d total training loss = %.3f' %(epoch, total_train_loss/len(TrainImgLoader)))
 	   
         ## Test ##
@@ -184,9 +185,9 @@ def main():
 		    'test_loss': total_test_loss/len(TestImgLoader)*100,
         }, savefilename)
 	
-        print('full finetune time = %.2f HR' %((time.time() - start_full_time)/3600))
-        print(max_epo)
-        print(max_acc)
+    print('full finetune time = %.2f HR' %((time.time() - start_full_time)/3600))
+    print(max_epo)
+    print(max_acc)
 
 if __name__ == '__main__':
    main()
