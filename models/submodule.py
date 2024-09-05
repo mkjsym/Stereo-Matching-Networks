@@ -6,12 +6,16 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import math
 import numpy as np
+    
+# def convbn_dw(in_planes, out_planes, kernel_size=3, kernels_per_layer=1):
+#     return nn.sequential(nn.Conv2d(in_planes, in_planes * kernels_per_layer, kernel_size=kernel_size, padding=1, groups=in_planes),
+#                          nn.Conv2d(in_planes * kernels_per_layer, out_planes, kernel_size=1),
+#                          nn.BatchNorm2d(out_planes))
 
 def convbn(in_planes, out_planes, kernel_size, stride, pad, dilation):
 
     return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=dilation if dilation > 1 else pad, dilation = dilation, bias=False),
                          nn.BatchNorm2d(out_planes))
-
 
 def convbn_3d(in_planes, out_planes, kernel_size, stride, pad):
 
@@ -54,6 +58,7 @@ class disparityregression(nn.Module):
 class feature_extraction(nn.Module):
     def __init__(self):
         super(feature_extraction, self).__init__()
+        #Feature Extraction CNN
         self.inplanes = 32
         self.firstconv = nn.Sequential(convbn(3, 32, 3, 2, 1, 1),
                                        nn.ReLU(inplace=True),
@@ -66,7 +71,8 @@ class feature_extraction(nn.Module):
         self.layer2 = self._make_layer(BasicBlock, 64, 16, 2,1,1) 
         self.layer3 = self._make_layer(BasicBlock, 128, 3, 1,1,1)
         self.layer4 = self._make_layer(BasicBlock, 128, 3, 1,1,2)
-
+        
+        #SPP Module
         self.branch1 = nn.Sequential(nn.AvgPool2d((64, 64), stride=(64,64)),
                                      convbn(128, 32, 1, 1, 0, 1),
                                      nn.ReLU(inplace=True))
@@ -89,6 +95,7 @@ class feature_extraction(nn.Module):
 
     def _make_layer(self, block, planes, blocks, stride, pad, dilation):
         downsample = None
+        #                                           block.expansion = 1
         if stride != 1 or self.inplanes != planes * block.expansion:
            downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * block.expansion,
@@ -104,13 +111,14 @@ class feature_extraction(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        #Feature Extraction CNN
         output      = self.firstconv(x)
         output      = self.layer1(output)
         output_raw  = self.layer2(output)
         output      = self.layer3(output_raw)
         output_skip = self.layer4(output)
 
-
+        #SPP Module
         output_branch1 = self.branch1(output_skip)
         output_branch1 = F.upsample(output_branch1, (output_skip.size()[2],output_skip.size()[3]),mode='bilinear')
 
@@ -127,6 +135,3 @@ class feature_extraction(nn.Module):
         output_feature = self.lastconv(output_feature)
 
         return output_feature
-
-
-

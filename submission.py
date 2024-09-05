@@ -13,11 +13,11 @@ from models import *
 from PIL import Image
 
 parser = argparse.ArgumentParser(description='PSMNet')
-parser.add_argument('--KITTI', default='2015',
+parser.add_argument('--KITTI', default='2012',
                     help='KITTI version')
-parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flow_2015/testing/',
+parser.add_argument('--datapath', default=r'/home/youngmin/YM/SL_disk_b/datasets/KITTI/kitti_2012/data_stereo_flow/testing/',
                     help='select model')
-parser.add_argument('--loadmodel', default='./trained/pretrained_model_KITTI2015.tar',
+parser.add_argument('--loadmodel', default=r'/home/youngmin/YM/SL_disk_b/savemodels/stereo/kitti2012_original_1000/finetune_1000.tar',
                     help='loading model')
 parser.add_argument('--model', default='stackhourglass',
                     help='select model')
@@ -43,6 +43,8 @@ test_left_img, test_right_img = DA.dataloader(args.datapath)
 
 if args.model == 'stackhourglass':
     model = stackhourglass(args.maxdisp)
+elif args.model == 'stackhourglass_bsconv':
+    model = stackhourglass_bsconv(args.maxdisp)
 elif args.model == 'basic':
     model = basic(args.maxdisp)
 else:
@@ -107,17 +109,11 @@ def main():
             img = pred_disp[top_pad:,:-right_pad]
         else:
             img = pred_disp
-
+        save_path = r'/home/youngmin/YM/SL_disk_b/GitHub/Stereo-Matching-Networks/subs/kitti2012_original/'
         img = (img*256).astype('uint16')
         img = Image.fromarray(img)
-        img.save(test_left_img[inx].split('/')[-1])
+        img.save(save_path + test_left_img[inx].split('/')[-1])
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-

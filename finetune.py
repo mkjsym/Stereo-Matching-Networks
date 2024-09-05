@@ -25,17 +25,17 @@ from models import *
 parser = argparse.ArgumentParser(description='PSMNet')
 parser.add_argument('--maxdisp', type=int ,default=192,
                     help='maxium disparity')
-parser.add_argument('--model', default='stackhourglass',
+parser.add_argument('--model', default='stackhourglass_bsconv_s',
                     help='select model')
-parser.add_argument('--datatype', default='2015',
+parser.add_argument('--datatype', default='2012',
                     help='datapath')
-parser.add_argument('--datapath', default='disk_b/datasets/KITTI/kitti_2015/data_scene_flow/training/',
+parser.add_argument('--datapath', default=r'/home/youngmin/YM/SL_disk_b/datasets/KITTI/kitti_2012/data_stereo_flow/training/',
                     help='datapath')
 parser.add_argument('--epochs', type=int, default=300,
                     help='number of epochs to train')
-parser.add_argument('--loadmodel', default='./YM/PSMNet-2stream/pretrained_model_KITTI2015.tar',
+parser.add_argument('--loadmodel', default=None,
                     help='load model')
-parser.add_argument('--savemodel', default='disk_b/savemodels/kitti2015_original_psmnet/',
+parser.add_argument('--savemodel', default=r'/home/youngmin/YM/SL_disk_b/savemodels/stereo/BSConvS_kitti2012_300/',
                     help='save model')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
@@ -64,6 +64,10 @@ TestImgLoader = torch.utils.data.DataLoader(
 
 if args.model == 'stackhourglass':
     model = stackhourglass(args.maxdisp)
+elif args.model == 'stackhourglass_bsconv':
+    model = stackhourglass_bsconv(args.maxdisp)
+elif args.model == 'stackhourglass_bsconv_s':
+    model = stackhourglass_bsconv_s(args.maxdisp)
 elif args.model == 'basic':
     model = basic(args.maxdisp)
 else:
@@ -97,16 +101,16 @@ def train(imgL,imgR,disp_L):
 
         optimizer.zero_grad()
         
-        if args.model == 'stackhourglass':
+        if args.model == 'stackhourglass' or args.model == 'stackhourglass_bsconv' or args.model == 'stackhourglass_bsconv_s':
             output1, output2, output3 = model(imgL,imgR)
             output1 = torch.squeeze(output1,1)
             output2 = torch.squeeze(output2,1)
             output3 = torch.squeeze(output3,1)
-            loss = 0.5*F.smooth_l1_loss(output1[mask], disp_true[mask], size_average=True) + 0.7*F.smooth_l1_loss(output2[mask], disp_true[mask], size_average=True) + F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True) 
+            loss = 0.5*F.smooth_l1_loss(output1[mask], disp_true[mask], size_average=True, beta=0.7) + 0.7*F.smooth_l1_loss(output2[mask], disp_true[mask], size_average=True, beta=0.7) + F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True, beta=0.7) 
         elif args.model == 'basic':
             output = model(imgL,imgR)
             output = torch.squeeze(output3,1)
-            loss = F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True)
+            loss = F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True, beta=0.7)
 
         loss.backward()
         optimizer.step()
@@ -169,8 +173,8 @@ def main():
             test_loss = test(imgL,imgR, disp_L)
             print('Iter %d 3-px error in val = %.3f' %(batch_idx, test_loss*100))
             total_test_loss += test_loss
-
         print('epoch %d total 3-px error in val = %.3f' %(epoch, total_test_loss/len(TestImgLoader)*100))
+
         if total_test_loss/len(TestImgLoader)*100 > max_acc:
             max_acc = total_test_loss/len(TestImgLoader)*100
             max_epo = epoch
@@ -179,11 +183,11 @@ def main():
         #SAVE
         savefilename = args.savemodel+'finetune_'+str(epoch)+'.tar'
         torch.save({
-            'epoch': epoch,
-		    'state_dict': model.state_dict(),
-		    'train_loss': total_train_loss/len(TrainImgLoader),
-		    'test_loss': total_test_loss/len(TestImgLoader)*100,
-        }, savefilename)
+                'epoch': epoch,
+                'state_dict': model.state_dict(),
+                'train_loss': total_train_loss/len(TrainImgLoader),
+                'test_loss': total_test_loss/len(TestImgLoader)*100,
+            }, savefilename)
 	
     print('full finetune time = %.2f HR' %((time.time() - start_full_time)/3600))
     print(max_epo)

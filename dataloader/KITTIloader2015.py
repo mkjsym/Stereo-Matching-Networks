@@ -18,7 +18,8 @@ def dataloader(filepath):
 
     left_fold  = 'image_2/'
     right_fold = 'image_3/'
-    disp_L = 'disp_occ_0/'
+    # disp_L = 'disp_occ_0/'
+    disp_L = 'disp_noc_0/'
     disp_R = 'disp_occ_1/'
 
     image = [img for img in os.listdir(filepath+left_fold) if img.find('_10') > -1]
